@@ -1,0 +1,1 @@
+go run ./cmd/... -dsn "postgres://postgres:postgres@localhost:5432/postgres" -count 1000
