@@ -6,6 +6,8 @@ This repo gives you a starting point for exploring the full text search capabili
 
 You must have Go and Docker installed.
 
+Run the following commands.
+
 - `go mod install`
 - `docker compose up -d`
   - This will start Postgres and run the `init.sql` file
