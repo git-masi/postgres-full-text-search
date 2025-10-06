@@ -2,10 +2,10 @@ package main
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"log/slog"
+	"math"
 	"os"
 
 	"github.com/brianvoe/gofakeit/v7"
@@ -29,63 +29,52 @@ func main() {
 
 	logger.Info("Creating new products in DB", slog.Int("count", *count))
 
-	var products [][]any
+	current := *count
+	chunkSize := 100_000
+	numChunks := int(math.Ceil(float64(*count) / float64(chunkSize)))
+	chunkCount := 1
 
-	for i := range *count {
-		name := gofakeit.ProductName()
-		description := fmt.Sprintf("%s - %s", name, gofakeit.ProductDescription())
-		price := fmt.Sprint(gofakeit.Price(9.99, 199.99))
+	for current > 0 {
+		size := min(current, chunkSize)
 
-		products = append(products, []any{
-			name,
-			description,
-			price,
-		})
+		logger.Info(
+			"Creating products",
+			slog.String("chunk", fmt.Sprintf("%d of %d", chunkCount, numChunks)),
+			slog.Int("num_products", size),
+		)
 
-		if i%10_000 == 0 {
-			logger.Info(fmt.Sprintf("Progress: %d/%d", i, *count))
+		var products [][]any
+
+		for range size {
+			name := gofakeit.ProductName()
+			description := fmt.Sprintf("%s - %s", name, gofakeit.ProductDescription())
+			price := fmt.Sprint(gofakeit.Price(9.99, 199.99))
+
+			products = append(products, []any{
+				name,
+				description,
+				price,
+			})
 		}
-	}
 
-	logger.Info("Attempting to insert values")
+		logger.Info("Inserting products into DB")
 
-	toInsert, err := Chunk(products, 100_000)
-	if err != nil {
-		logger.Error(err.Error())
-		os.Exit(1)
-	}
-
-	for i, p := range toInsert {
 		numInserted, err := conn.CopyFrom(
 			context.TODO(),
 			pgx.Identifier{"products"},
 			[]string{"name", "description", "price"},
-			pgx.CopyFromRows(p),
+			pgx.CopyFromRows(products),
 		)
 		if err != nil {
 			logger.Error(err.Error())
 			os.Exit(1)
 		}
 
-		logger.Info(fmt.Sprintf("Chunk %d/%d finished", i+1, len(toInsert)), slog.Int64("num_inserted", numInserted))
+		logger.Info("Chunk inserted", slog.Int64("num_inserted", numInserted))
+
+		current = current - chunkSize
+		chunkCount++
 	}
 
-	logger.Info("Finished inserting rows")
-}
-
-func Chunk[T any](slice []T, size int) ([][]T, error) {
-	if size < 1 {
-		return nil, errors.New("error message")
-	}
-	if len(slice) < size {
-		return nil, errors.New("error message")
-	}
-
-	batches := make([][]T, 0, ((len(slice)-1)/size)+1)
-
-	for size < len(slice) {
-		slice, batches = slice[size:], append(batches, slice[0:size:size])
-	}
-	batches = append(batches, slice)
-	return batches, nil
+	logger.Info("Finished")
 }
