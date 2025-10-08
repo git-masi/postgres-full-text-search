@@ -28,7 +28,7 @@ SELECT
 FROM
     products
 WHERE
-    product_search_vector @@ to_tsquery('english', 'computer')
+    product_search_vector @@ to_tsquery('english', 'computer');
 ```
 
 Here's a query that allows you to see where in the text a search term appears.
@@ -43,7 +43,7 @@ SELECT
 FROM
     products
 WHERE
-    product_search_vector @@ to_tsquery('english', 'wood')
+    product_search_vector @@ to_tsquery('english', 'wood');
 ```
 
 Finally, it can be interesting to see how much space on disk the `product_search_vector` takes up.
